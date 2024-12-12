@@ -39,8 +39,9 @@ chr1	ENSG00000237491.10	ENSG00000237491.10;A3:chr1:779092-803919:779092-803922:+
 chr1	ENSG00000237491.10	ENSG00000237491.10;A3:chr1:807323-809622:807323-809658:+	ENST00000412115.2,ENST00000670700.1,ENST00000657896.1,ENST00000658648.1	ENST00000656571.1,ENST00000657896.1,ENST00000412115.2,ENST00000669749.1,ENST00000658648.1,ENST00000588951.5,ENST00000665719.1,ENST00000670700.1
 [...]
 ```
+## Files TPM
 > [!IMPORTANT]
-> Controllare che tutti i file tpm abbiano valori di espressione numerici e tutti con le stesse colonne, creare lo script check_tpm_values.py
+> Controllare che tutti i file tpm abbiano valori di espressione numerici e tutti con le stesse colonne, creare lo script `check_tpm_values.py`
 ```Python
 import pandas as pd
 import glob
@@ -88,8 +89,125 @@ for filename in sorted(glob.glob('*.tpm')):
 ```Python
 python check_tpm_values.py
 ```
+Genero file TPM unito per ogni replica
+```Python
+#Replica A
+suppa joinFiles -f tpm -i A1.tpm A2.tpm A3.tpm A4.tpm -o A_all
+#Replica B
+suppa joinFiles -f tpm -i B1.tpm B2.tpm B3.tpm B4.tpm -o B_all
+#Replica c
+suppa joinFiles -f tpm -i C1.tpm C2.tpm C3.tpm C4.tpm -o C_all
+```
 
 
+Dobbiamo verificare che i trascritti espressi siano consistenti tra tutti i campioni (A, B, e C) e creare un file `filtered_events.ioe` che contenga solo gli eventi con trascritti presenti in tutti i file di espressione
+```Python
+import pandas as pd
+import os
+from datetime import datetime
 
+def analyze_transcripts_all_replicates():
+    print(f"Analisi iniziata il: {datetime.utcnow()}")
+    print(f"Utente: Aria511")
+    
+    # Percorsi dei file
+    events_file = '/Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Events/events.ioe'
+    expression_files = {
+        'A': '/Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/A_all.tpm',
+        'B': '/Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/B_all.tpm',
+        'C': '/Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/C_all.tpm'
+    }
+    output_dir = '/Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered'
+    
+    # Crea la directory di output se non esiste
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print("\nVerificando i file di input...")
+    for name, path in expression_files.items():
+        if os.path.exists(path):
+            print(f"File {name}_all.tpm trovato")
+        else:
+            print(f"ERRORE: File {name}_all.tpm non trovato in {path}")
+            return
+            
+    if os.path.exists(events_file):
+        print("File events.ioe trovato")
+    else:
+        print(f"ERRORE: File events.ioe non trovato in {events_file}")
+        return
+
+    print("\nLeggendo i file...")
+    
+    # Leggi il file events.ioe
+    events = pd.read_csv(events_file, sep='\t')
+    print(f"Eventi totali nel file originale: {len(events)}")
+    
+    # Raccogli tutti i trascritti dal file events.ioe
+    event_transcripts = set()
+    for idx, row in events.iterrows():
+        event_transcripts.update(row['alternative_transcripts'].split(','))
+        event_transcripts.update(row['total_transcripts'].split(','))
+    
+    print(f"Trascritti totali negli eventi: {len(event_transcripts)}")
+    
+    # Leggi i file di espressione e trova i trascritti comuni
+    expression_transcripts = {}
+    for replicate, file_path in expression_files.items():
+        expression = pd.read_csv(file_path, sep='\t', index_col=0)
+        expression_transcripts[replicate] = set(expression.index)
+        
+    # Trova i trascritti presenti in tutti i file di espressione
+    common_transcripts = set.intersection(*expression_transcripts.values())
+    
+    # Statistiche dettagliate
+    print("\nSTATISTICHE DETTAGLIATE PER REPLICATO:")
+    for replicate, transcripts in expression_transcripts.items():
+        print(f"\nReplicato {replicate}:")
+        print(f"Numero totale di trascritti: {len(transcripts)}")
+        missing = event_transcripts - transcripts
+        unique = transcripts - set.union(*(expression_transcripts[r] for r in expression_transcripts if r != replicate))
+        print(f"Trascritti mancanti rispetto agli eventi: {len(missing)}")
+        print(f"Trascritti unici in questo replicato: {len(unique)}")
+    
+    print(f"\nTrascritti comuni a tutti i replicati: {len(common_transcripts)}")
+    print(f"Percentuale di trascritti comuni: {len(common_transcripts)*100/len(event_transcripts):.2f}%")
+    
+    # Filtra gli eventi
+    print("\nFiltraggio eventi...")
+    def check_transcripts(row, available_transcripts):
+        alt_trans = set(row['alternative_transcripts'].split(','))
+        total_trans = set(row['total_transcripts'].split(','))
+        return all(t in available_transcripts for t in alt_trans.union(total_trans))
+    
+    events['valid'] = events.apply(lambda row: check_transcripts(row, common_transcripts), axis=1)
+    
+    # Salva gli eventi validi
+    valid_events = events[events['valid']].drop(columns=['valid'])
+    output_file = os.path.join(output_dir, 'filtered_events_all_replicates.ioe')
+    valid_events.to_csv(output_file, sep='\t', index=False)
+    
+    # Analisi per tipo di evento
+    print("\nANALISI PER TIPO DI EVENTO:")
+    events['event_type'] = [e.split(';')[1].split(':')[0] for e in events['event_id']]
+    valid_events['event_type'] = [e.split(';')[1].split(':')[0] for e in valid_events['event_id']]
+    
+    print("\nEventi originali per tipo:")
+    print(events['event_type'].value_counts())
+    print("\nEventi filtrati per tipo:")
+    print(valid_events['event_type'].value_counts())
+    
+    print(f"\nAnalisi completata il: {datetime.utcnow()}")
+    
+    return output_file
+
+if __name__ == "__main__":
+    filtered_file = analyze_transcripts_all_replicates()
+    if filtered_file:
+        print(f"\nFile degli eventi filtrato creato: {filtered_file}")
+        print("\nComandi per eseguire SUPPA:")
+        for replicate in ['A', 'B', 'C']:
+            print(f"\nPer il replicato {replicate}:")
+            print(f"suppa psiPerEvent -i {filtered_file} \\\n-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/{replicate}_all.tpm \\\n-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/{replicate}_psi")
+```
 
 suppa psiPerEvent -i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events.ioe -e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/A_all.tpm -o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/A_psi
