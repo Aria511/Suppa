@@ -309,6 +309,11 @@ ENSG00000000003.16;AF:chrX:100635746-100636191:...  0.889376  0.990577  0.940255
 ENSG00000000003.16;SE:chrX:100630866-100632485:...  0.994375  0.999284  0.996537  0.996050
 [...]
 ```
+I valori PSI sono compresi tra 0 e 1, dove:
+- 0 indica che l'isoforma alternativa non è espressa
+- 1 indica che l'isoforma alternativa è completamente espressa
+- Valori intermedi indicano una miscela delle due forme
+
 ## Differential splicing analysis for transcripts and local events
 Riorganizzo i file per timepoint per fare i confronti differenziali, creo uno script `merge_replicates.py`
 ```Python
