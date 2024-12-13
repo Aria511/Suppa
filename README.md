@@ -7,11 +7,11 @@ python --version
 
 Creo ambiente python
 ```bash
-python3 -m venv suppa_env
+python3 -m venv suppa_env 
 source suppa_env/bin/activate #attiva ambiente 
 ```
 
-scarico code di [Suppav2.4](https://github.com/comprna/SUPPA/releases/tag/v2.4) e lo rendo eseguibile in ogni directory
+scarico code di [Suppav2.4](https://github.com/comprna/SUPPA/releases/tag/v2.4) e lo rendo eseguibile in ogni directory (ogni volta che chiudo o riapro il terminale)
 ```bash
 alias suppa='python /Users/labbione/Desktop/SUPPA/SUPPA-2.4/suppa.py'
 ```
@@ -100,7 +100,8 @@ suppa joinFiles -f tpm -i C1.tpm C2.tpm C3.tpm C4.tpm -o C_all
 ```
 
 
-Dobbiamo verificare che i trascritti espressi siano consistenti tra tutti i campioni (A, B, e C) e creare un file `filtered_events.ioe` che contenga solo gli eventi con trascritti presenti in tutti i file di espressione
+Dobbiamo verificare che i trascritti espressi siano consistenti tra tutti i campioni (A, B, e C) e creare un file `filtered_events.ioe` che contenga solo gli eventi con trascritti presenti in tutti i file di espressione.\
+Creo uno script `analyze_all_replicates.py`
 ```Python
 import pandas as pd
 import os
@@ -108,7 +109,6 @@ from datetime import datetime
 
 def analyze_transcripts_all_replicates():
     print(f"Analisi iniziata il: {datetime.utcnow()}")
-    print(f"Utente: Aria511")
     
     # Percorsi dei file
     events_file = '/Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Events/events.ioe'
@@ -209,5 +209,69 @@ if __name__ == "__main__":
             print(f"\nPer il replicato {replicate}:")
             print(f"suppa psiPerEvent -i {filtered_file} \\\n-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/{replicate}_all.tpm \\\n-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/{replicate}_psi")
 ```
+```Python
+python analyze_all_replicates.py
+```
+Risultato:\
+Eventi totali nel file originale: 327628\
+Trascritti totali negli eventi: 199209\
 
-suppa psiPerEvent -i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events.ioe -e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/A_all.tpm -o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/A_psi
+### STATISTICHE DETTAGLIATE PER REPLICATO:
+\
+Replicato A:\
+Numero totale di trascritti: 253181\
+Trascritti mancanti rispetto agli eventi: 16121\
+Trascritti unici in questo replicato: 0\
+\
+Replicato B:\
+Numero totale di trascritti: 253181\
+Trascritti mancanti rispetto agli eventi: 16121\
+Trascritti unici in questo replicato: 0\
+\
+Replicato C:\
+Numero totale di trascritti: 253181\
+Trascritti mancanti rispetto agli eventi: 16121\
+Trascritti unici in questo replicato: 0\
+\
+Trascritti comuni a tutti i replicati: 253181\
+Percentuale di trascritti comuni: 127.09%\
+
+### ANALISI PER TIPO DI EVENTO:
+
+Eventi originali per tipo:\
+event_type\
+AF    139285\
+SE     61582\
+AL     52803\
+A3     27004\
+A5     23789\
+RI     12011\
+MX     11154\
+Name: count, dtype: int64\
+\
+Eventi filtrati per tipo:\
+event_type\
+AF    130713\
+SE     56795\
+AL     45498\
+A3     24248\
+A5     21695\
+RI     10548\
+MX     10434
+
+- Tutti e tre i replicati (A, B, C) hanno esattamente lo stesso numero di trascritti: 253,181
+- Hanno tutti lo stesso numero di trascritti mancanti: 16,121
+- Non ci sono trascritti unici in nessun replicato (tutti 0)
+- I trascritti sono perfettamente consistenti tra i replicati
+
+Statistiche degli eventi: \
+Eventi originali totali: 327,628 \
+Eventi dopo il filtraggio: \
+AF: da 139,285 a 130,713 (-8,572) \
+SE: da 61,582 a 56,795 (-4,787) \
+AL: da 52,803 a 45,498 (-7,305) \
+A3: da 27,004 a 24,248 (-2,756)\
+A5: da 23,789 a 21,695 (-2,094) \
+RI: da 12,011 a 10,548 (-1,463) \
+MX: da 11,154 a 10,434 (-720) \
+Quindi la qualità dei dati è buona è il processo di quantificazione è stato eseguito in modo coerente.
