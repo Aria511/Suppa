@@ -98,7 +98,14 @@ suppa joinFiles -f tpm -i B1.tpm B2.tpm B3.tpm B4.tpm -o B_all
 #Replica c
 suppa joinFiles -f tpm -i C1.tpm C2.tpm C3.tpm C4.tpm -o C_all
 ```
-
+Struttura file TPM:
+```
+sample1 sample2 sample3 sample4
+transcript1 <expression>  <expression>  <expression>  <expression>
+transcript2 <expression>  <expression>  <expression>  <expression>
+transcript3 <expression>  <expression>  <expression>  <expression>
+[...]
+```
 
 Dobbiamo verificare che i trascritti espressi siano consistenti tra tutti i campioni (A, B, e C) e creare un file `filtered_events.ioe` che contenga solo gli eventi con trascritti presenti in tutti i file di espressione.\
 Creo uno script `analyze_all_replicates.py`
@@ -275,3 +282,210 @@ A5: da 23,789 a 21,695 (-2,094) \
 RI: da 12,011 a 10,548 (-1,463) \
 MX: da 11,154 a 10,434 (-720) \
 Quindi la qualità dei dati è buona è il processo di quantificazione è stato eseguito in modo coerente.
+
+## PSI per local event
+```Python
+# Per il replicato A
+suppa psiPerEvent -i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events_all_replicates.ioe \
+-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/A_all.tpm \
+-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/A_psi
+
+# Per il replicato B
+suppa psiPerEvent -i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events_all_replicates.ioe \
+-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/B_all.tpm \
+-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/B_psi
+
+# Per il replicato C
+suppa psiPerEvent -i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events_all_replicates.ioe \
+-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/C_all.tpm \
+-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/C_psi
+```
+Struttura file psi:
+```
+                                                         A1        A2        A3        A4
+ENSG00000000003.16;A5:chrX:100635746-100636191:...  0.043499  0.070079  0.051853  0.052103
+ENSG00000000003.16;A5:chrX:100635746-100636608:...  0.994375  0.981785  0.934837  0.996050
+ENSG00000000003.16;AF:chrX:100635746-100636191:...  0.889376  0.990577  0.940255  0.932714
+ENSG00000000003.16;SE:chrX:100630866-100632485:...  0.994375  0.999284  0.996537  0.996050
+[...]
+```
+## Differential splicing analysis for transcripts and local events
+Riorganizzo i file per timepoint per fare i confronti differenziali, creo uno script `merge_replicates.py`
+```Python
+import pandas as pd
+import os
+from datetime import datetime, timezone
+
+def merge_replicates_by_timepoint():
+    print(f"Script iniziato il: {datetime.now(timezone.utc)}")
+    
+    # Definisci i percorsi
+    base_path = '/Volumes/Arianna/HeLa_MMC/Suppa2'
+    output_psi_path = f'{base_path}/New_suppa/Psi'
+    output_tpm_path = f'{base_path}/tpm_files'
+    
+    print("\nLeggendo i file PSI...")
+    # Leggi i file PSI
+    psi_a = pd.read_csv(f'{output_psi_path}/A_psi.psi', sep='\t')
+    psi_b = pd.read_csv(f'{output_psi_path}/B_psi.psi', sep='\t')
+    psi_c = pd.read_csv(f'{output_psi_path}/C_psi.psi', sep='\t')
+    
+    # Ottieni l'indice degli eventi (prima riga senza il nome della colonna)
+    event_id = psi_a.index
+    
+    print("\nCreando i file PSI per timepoint...")
+    # Crea i file PSI per ogni timepoint
+    # 0h (colonne 1)
+    time_0h_psi = pd.DataFrame({
+        'event_id': event_id,
+        'A_0h': psi_a['A1'],
+        'B_0h': psi_b['B1'],
+        'C_0h': psi_c['C1']
+    })
+    
+    # 16h (colonne 2)
+    time_16h_psi = pd.DataFrame({
+        'event_id': event_id,
+        'A_16h': psi_a['A2'],
+        'B_16h': psi_b['B2'],
+        'C_16h': psi_c['C2']
+    })
+    
+    # 20h (colonne 3)
+    time_20h_psi = pd.DataFrame({
+        'event_id': event_id,
+        'A_20h': psi_a['A3'],
+        'B_20h': psi_b['B3'],
+        'C_20h': psi_c['C3']
+    })
+    
+    # 24h (colonne 4)
+    time_24h_psi = pd.DataFrame({
+        'event_id': event_id,
+        'A_24h': psi_a['A4'],
+        'B_24h': psi_b['B4'],
+        'C_24h': psi_c['C4']
+    })
+    
+    print("\nLeggendo i file TPM...")
+    # Leggi i file TPM
+    tpm_a = pd.read_csv(f'{output_tpm_path}/A_all.tpm', sep='\t')
+    tpm_b = pd.read_csv(f'{output_tpm_path}/B_all.tpm', sep='\t')
+    tpm_c = pd.read_csv(f'{output_tpm_path}/C_all.tpm', sep='\t')
+    
+    print("\nCreando i file TPM per timepoint...")
+    # Crea i file TPM per ogni timepoint
+    # 0h (colonne 1)
+    time_0h_tpm = pd.DataFrame({
+        'transcript_id': tpm_a.index,
+        'A_0h': tpm_a['A1'],
+        'B_0h': tpm_b['B1'],
+        'C_0h': tpm_c['C1']
+    })
+    
+    # 16h (colonne 2)
+    time_16h_tpm = pd.DataFrame({
+        'transcript_id': tpm_a.index,
+        'A_16h': tpm_a['A2'],
+        'B_16h': tpm_b['B2'],
+        'C_16h': tpm_c['C2']
+    })
+    
+    # 20h (colonne 3)
+    time_20h_tpm = pd.DataFrame({
+        'transcript_id': tpm_a.index,
+        'A_20h': tpm_a['A3'],
+        'B_20h': tpm_b['B3'],
+        'C_20h': tpm_c['C3']
+    })
+    
+    # 24h (colonne 4)
+    time_24h_tpm = pd.DataFrame({
+        'transcript_id': tpm_a.index,
+        'A_24h': tpm_a['A4'],
+        'B_24h': tpm_b['B4'],
+        'C_24h': tpm_c['C4']
+    })
+    
+    print("\nSalvando i file elaborati...")
+    # Salva i file PSI
+    time_0h_psi.to_csv(f'{output_psi_path}/time_0h.psi', sep='\t', index=False)
+    time_16h_psi.to_csv(f'{output_psi_path}/time_16h.psi', sep='\t', index=False)
+    time_20h_psi.to_csv(f'{output_psi_path}/time_20h.psi', sep='\t', index=False)
+    time_24h_psi.to_csv(f'{output_psi_path}/time_24h.psi', sep='\t', index=False)
+    
+    # Salva i file TPM
+    time_0h_tpm.to_csv(f'{output_tpm_path}/time_0h.tpm', sep='\t', index=False)
+    time_16h_tpm.to_csv(f'{output_tpm_path}/time_16h.tpm', sep='\t', index=False)
+    time_20h_tpm.to_csv(f'{output_tpm_path}/time_20h.tpm', sep='\t', index=False)
+    time_24h_tpm.to_csv(f'{output_tpm_path}/time_24h.tpm', sep='\t', index=False)
+    
+    print("\nScript completato con successo!")
+    print("File generati:")
+    print("PSI files:", f'{output_psi_path}/time_*.psi')
+    print("TPM files:", f'{output_tpm_path}/time_*.tpm')
+
+if __name__ == "__main__":
+    merge_replicates_by_timepoint()
+```
+```Python
+python merge_replicates.py
+```
+Struttura dei file (ad. es) time_0h.psi
+```
+event_id	A_0h	B_0h	C_0h
+ENSG00000000003.16;A5:chrX:100635746-100636191:100635746-100636608:-	0.0434987308114927	0.0653500318580342	0.0519192396976797
+ENSG00000000003.16;A5:chrX:100635746-100636608:100635746-100636793:-	0.9943752125120676	0.9897959488158976	0.9960471696304202
+ENSG00000000003.16;AF:chrX:100635746-100636191:100636689:100635746-100636793:100637104:-	0.8893758092284051	0.953682340644733	0.9324288973903684
+```
+### Analisi differenziale
+```Python
+# 0h vs 16h
+suppa diffSplice \
+-m empirical \
+-p /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/time_0h.psi /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/time_16h.psi \
+-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/time_0h.tpm /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/time_16h.tpm \
+-i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events_all_replicates.ioe \
+-gc \
+-pa \
+-a 1000 \
+-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/DiffSplice/0vs16
+
+# 0h vs 20h
+suppa diffSplice \
+-m empirical \
+-p /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/time_0h.psi /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/time_20h.psi \
+-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/time_0h.tpm /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/time_20h.tpm \
+-i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events_all_replicates.ioe \
+-gc \
+-pa \
+-a 1000 \
+-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/DiffSplice/0vs20
+
+# 0h vs 24h
+suppa diffSplice \
+-m empirical \
+-p /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/time_0h.psi /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/Psi/time_24h.psi \
+-e /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/time_0h.tpm /Volumes/Arianna/HeLa_MMC/Suppa2/tpm_files/time_24h.tpm \
+-i /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/filtered/filtered_events_all_replicates.ioe \
+-gc \
+-pa \
+-a 1000 \
+-o /Volumes/Arianna/HeLa_MMC/Suppa2/New_suppa/DiffSplice/0vs24
+```
+
+Struttura file.dpsi
+```
+time_0h-time_16h_dPSI	time_0h-time_16h_p-val
+ENSG00000000003.16;A5:chrX:100635746-100636191:100635746-100636608:-	0.0204631282	0.3946053946
+ENSG00000000003.16;A5:chrX:100635746-100636608:100635746-100636793:-	-0.0047144376	0.3946053946
+ENSG00000000003.16;AF:chrX:100635746-100636191:100636689:100635746-100636793:100637104:-	0.0126019989	0.3946053946
+```
+
+Struttura file.psivec
+```
+time_0h_1	time_0h_2	time_0h_3	time_16h_1	time_16h_2	time_16h_3
+ENSG00000000003.16;A5:chrX:100635746-100636191:100635746-100636608:-	0.0434987308114927	0.0653500318580342	0.0519192396976797	0.0700793970707152	0.0644615088505301	0.0876164810725618
+ENSG00000000003.16;A5:chrX:100635746-100636608:100635746-100636793:-	0.9943752125120676	0.9897959488158976	0.9960471696304202	0.9817846429827471	0.9927960146869952	0.9914943605892614
+ENSG00000000003.16;AF:chrX:100635746-100636191:100636689:100635746-100636793:100637104:-	0.8893758092284051	0.953682340644733	0.9324288973903684	0.9905767938447134	0.904722693455831	0.9179935566531734
+```
