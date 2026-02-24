@@ -68,6 +68,28 @@ mkdir -p "$EVENTS_DIR" "$FILTERED_DIR" "$PSI_DIR" "$DIFF_DIR"
 
 ---
 
+## Inputs
+
+Minimum required inputs:
+- **GTF annotation**: `annotation.gtf`
+- **TPM quantifications**: sample-level `.tpm` files (two-column format) or joined matrices produced by SUPPA2 `joinFiles`
+
+Expected TPM file naming (example):
+- Replicate group A: `A1.tpm`, `A2.tpm`, `A3.tpm`, `A4.tpm`
+- Replicate group B: `B1.tpm`, `B2.tpm`, `B3.tpm`, `B4.tpm`
+- Replicate group C: `C1.tpm`, `C2.tpm`, `C3.tpm`, `C4.tpm`
+
+---
+
+## Outputs (main)
+
+Key outputs produced by the workflow:
+- Event files: `events.ioe_*` and optionally a merged `events.ioe`
+- Filtered events: `filtered_events_all_replicates.ioe`
+- PSI matrices: `A_psi.psi`, `B_psi.psi`, `C_psi.psi`
+- Timepoint-merged PSI/TPM: `time_*.psi`, `time_*.tpm`
+- Differential splicing results: `diffsplice/*` (e.g., `*_dPSI`, `*_psivec`)
+
 ## 3) Generate alternative splicing events
 
 Generate events from the GTF:
