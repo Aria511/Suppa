@@ -28,6 +28,9 @@ pip install -r requirements.txt
 # Follow the full guide:
 # docs/pipeline.md
 ```
+## Citation
+If you use this workflow, please cite SUPPA2:
+https://github.com/comprna/SUPPA
 
 ## License
-Consider adding a license if you want others to reuse this work.
+MIT License. See [`LICENSE`](LICENSE).
