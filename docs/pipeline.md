@@ -108,11 +108,13 @@ SUPPA2 outputs one `.ioe` file per event type.
 If you need a single combined file:
 
 ```bash
-head -n 1 "$EVENTS_DIR/events.ioe_A3_strict.ioe" > "$EVENTS_DIR/events.ioe"
+first_file=$(ls "$EVENTS_DIR"/events.ioe_*.ioe | head -n 1)
+head -n 1 "$first_file" > "$EVENTS_DIR/events.ioe"
 
 for file in "$EVENTS_DIR"/events.ioe_*.ioe; do
   tail -n +2 "$file" >> "$EVENTS_DIR/events.ioe"
 done
+
 ```
 
 The resulting file has columns like:
