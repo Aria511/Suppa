@@ -138,7 +138,8 @@ Run the helper script (see `scripts/check_tpm_values.py`):
 ```bash
 python scripts/check_tpm_values.py --input-dir "$TPM_DIR" --pattern "*.tpm"
 ```
-Run this on sample-level TPM files (e.g. A1.tpm, A2.tpm), not on joined matrices like A_all.tpm
+> Note: `check_tpm_values.py` expects **2-column** TPM files (transcript_id + TPM), e.g. `A1.tpm`, `A2.tpm`.
+> Do **not** run it on joined matrices produced by `suppa joinFiles` (e.g. `A_all.tpm`), which have multiple columns.
 
 ### 4.2 Merge replicate TPM files
 Example (4 samples per replicate group):
